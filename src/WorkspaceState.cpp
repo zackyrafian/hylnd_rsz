@@ -136,12 +136,9 @@ void WorkspaceManager::onIPCEvent(const std::string& event, const std::string& d
     }
 
     if (event == "urgent") {
-        for (auto& win : g_pCompositor->m_windows) {
-            if (!win || !win->m_workspace) continue;
-            char addr[32];
-            snprintf(addr, sizeof(addr), "%lx", (unsigned long)(uintptr_t)win.get());
-            if (data.find(addr) != std::string::npos) {
-                setUrgent(win->m_workspace->m_id, true);
+        for (auto& [id, ws] : m_workspaces) {
+            if (ws.name == data) {
+                setUrgent(id, true);
                 return;
             }
         }
