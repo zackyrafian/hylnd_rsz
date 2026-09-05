@@ -108,8 +108,9 @@ bool CHyprspaceWidget::axisEvent(double delta, wl_pointer_axis axis, Vector2D co
             owner->changeWorkspace(wsIDName.id);
         } else {
             SWorkspaceIDName wsIDName = getWorkspaceIDNameFromString("r+1");
-            if (g_pCompositor->getWorkspaceByID(wsIDName.id))
-                owner->changeWorkspace(wsIDName.id);
+            if (!g_pCompositor->getWorkspaceByID(wsIDName.id))
+                (void)g_pCompositor->createNewWorkspace(wsIDName.id, m_ownerID);
+            owner->changeWorkspace(wsIDName.id);
         }
         if (Config::exitOnSwitch) hide();
         return true;
