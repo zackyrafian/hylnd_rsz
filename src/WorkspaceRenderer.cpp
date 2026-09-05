@@ -193,7 +193,7 @@ void WorkspaceRenderer::draw(const std::vector<Workspace>& workspaces, const std
                 if (!(wW > 0 && wH > 0)) continue;
 
                 CBox winBox = {wX, wY, wW, wH};
-                renderWindowStub(win, owner, owner->m_activeWorkspace, winBox, wsBox, time);
+                renderWindowStub(win, owner, pWs, winBox, wsBox, time);
                 m_owner->addWindowBox(win, winBox);
             }
 
@@ -207,7 +207,7 @@ void WorkspaceRenderer::draw(const std::vector<Workspace>& workspaces, const std
                 double wH = lastFocused->m_realSize->value().y * monitorSF * owner->m_scale;
                 if (wW > 0 && wH > 0) {
                     CBox winBox = {wX, wY, wW, wH};
-                    renderWindowStub(lastFocused, owner, owner->m_activeWorkspace, winBox, wsBox, time);
+                    renderWindowStub(lastFocused, owner, pWs, winBox, wsBox, time);
                     m_owner->addWindowBox(lastFocused, winBox);
                 }
             }
