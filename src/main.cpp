@@ -2,6 +2,7 @@
 #include "Overview.hpp"
 
 #include <hyprland/src/plugins/PluginAPI.hpp>
+#include <hyprland/src/config/ConfigValue.hpp>
 #include <hyprland/src/managers/HookSystemManager.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
 #include <hyprland/src/devices/IPointer.hpp>
@@ -45,6 +46,26 @@ namespace Config {
     float overrideAnimSpeed  = 0.f;
 }
 
+static void loadConfigValues() {
+    try {
+        Config::panelHeight        = static_cast<int>(*CConfigValue<Hyprlang::INT>("plugin:overview:panelHeight"));
+        Config::workspaceMargin    = static_cast<int>(*CConfigValue<Hyprlang::INT>("plugin:overview:workspaceMargin"));
+        Config::onBottom           = static_cast<bool>(*CConfigValue<Hyprlang::INT>("plugin:overview:onBottom"));
+        Config::affectStrut        = static_cast<bool>(*CConfigValue<Hyprlang::INT>("plugin:overview:affectStrut"));
+        Config::disableBlur        = static_cast<bool>(*CConfigValue<Hyprlang::INT>("plugin:overview:disableBlur"));
+        Config::autoDrag           = static_cast<bool>(*CConfigValue<Hyprlang::INT>("plugin:overview:autoDrag"));
+        Config::autoScroll         = static_cast<bool>(*CConfigValue<Hyprlang::INT>("plugin:overview:autoScroll"));
+        Config::exitOnClick        = static_cast<bool>(*CConfigValue<Hyprlang::INT>("plugin:overview:exitOnClick"));
+        Config::exitOnSwitch       = static_cast<bool>(*CConfigValue<Hyprlang::INT>("plugin:overview:exitOnSwitch"));
+        Config::showNewWorkspace   = static_cast<bool>(*CConfigValue<Hyprlang::INT>("plugin:overview:showNewWorkspace"));
+        Config::showEmptyWorkspace = static_cast<bool>(*CConfigValue<Hyprlang::INT>("plugin:overview:showEmptyWorkspace"));
+        Config::disableGestures    = static_cast<bool>(*CConfigValue<Hyprlang::INT>("plugin:overview:disableGestures"));
+        Config::reverseSwipe       = static_cast<bool>(*CConfigValue<Hyprlang::INT>("plugin:overview:reverseSwipe"));
+        auto animVal = *CConfigValue<Hyprlang::FLOAT>("plugin:overview:overrideAnimSpeed");
+        Config::overrideAnimSpeed = static_cast<float>(animVal);
+    } catch (...) {}
+}
+
 SP<CHyprspaceWidget> getWidgetForMonitor(PHLMONITOR mon) {
     if (!mon) return nullptr;
     for (auto& w : g_overviewWidgets) {
@@ -71,6 +92,7 @@ void registerMonitors() {
 }
 
 static void reloadConfig() {
+    loadConfigValues();
     for (auto& w : g_overviewWidgets) {
         if (w) w->updateConfig();
     }
@@ -116,12 +138,15 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO pluginInit(HANDLE handle) {
     HyprlandAPI::addConfigValue(handle, "plugin:overview:onBottom",          Hyprlang::CConfigValue((Hyprlang::INT)1));
     HyprlandAPI::addConfigValue(handle, "plugin:overview:affectStrut",       Hyprlang::CConfigValue((Hyprlang::INT)1));
     HyprlandAPI::addConfigValue(handle, "plugin:overview:disableBlur",       Hyprlang::CConfigValue((Hyprlang::INT)0));
+    HyprlandAPI::addConfigValue(handle, "plugin:overview:autoDrag",          Hyprlang::CConfigValue((Hyprlang::INT)1));
+    HyprlandAPI::addConfigValue(handle, "plugin:overview:autoScroll",        Hyprlang::CConfigValue((Hyprlang::INT)1));
     HyprlandAPI::addConfigValue(handle, "plugin:overview:exitOnClick",       Hyprlang::CConfigValue((Hyprlang::INT)1));
     HyprlandAPI::addConfigValue(handle, "plugin:overview:exitOnSwitch",      Hyprlang::CConfigValue((Hyprlang::INT)0));
     HyprlandAPI::addConfigValue(handle, "plugin:overview:showNewWorkspace",  Hyprlang::CConfigValue((Hyprlang::INT)1));
     HyprlandAPI::addConfigValue(handle, "plugin:overview:showEmptyWorkspace",Hyprlang::CConfigValue((Hyprlang::INT)1));
     HyprlandAPI::addConfigValue(handle, "plugin:overview:disableGestures",   Hyprlang::CConfigValue((Hyprlang::INT)0));
     HyprlandAPI::addConfigValue(handle, "plugin:overview:reverseSwipe",      Hyprlang::CConfigValue((Hyprlang::INT)0));
+    HyprlandAPI::addConfigValue(handle, "plugin:overview:overrideAnimSpeed", Hyprlang::CConfigValue((Hyprlang::FLOAT)0.f));
 
     HyprlandAPI::addDispatcherV2(handle, "overview:toggle", dispatchToggle);
     HyprlandAPI::addDispatcherV2(handle, "overview:show",   dispatchShow);
@@ -221,33 +246,35 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO pluginInit(HANDLE handle) {
             info.cancelled = true;
     });
 
-    if (!Config::disableGestures) {
-        g_pSwipeBeginHook = g_pHookSystem->hookDynamic("swipeBegin", [](void*, SCallbackInfo&, std::any data) {
-            auto ev  = std::any_cast<IPointer::SSwipeBeginEvent>(data);
-            auto mon = g_pCompositor->getMonitorFromCursor();
-            auto w   = getWidgetForMonitor(mon);
-            if (w) w->beginSwipe(ev);
-        });
+    g_pSwipeBeginHook = g_pHookSystem->hookDynamic("swipeBegin", [](void*, SCallbackInfo&, std::any data) {
+        if (Config::disableGestures) return;
+        auto ev  = std::any_cast<IPointer::SSwipeBeginEvent>(data);
+        auto mon = g_pCompositor->getMonitorFromCursor();
+        auto w   = getWidgetForMonitor(mon);
+        if (w) w->beginSwipe(ev);
+    });
 
-        g_pSwipeUpdateHook = g_pHookSystem->hookDynamic("swipeUpdate", [](void*, SCallbackInfo&, std::any data) {
-            auto ev  = std::any_cast<IPointer::SSwipeUpdateEvent>(data);
-            auto mon = g_pCompositor->getMonitorFromCursor();
-            auto w   = getWidgetForMonitor(mon);
-            if (w) w->updateSwipe(ev);
-        });
+    g_pSwipeUpdateHook = g_pHookSystem->hookDynamic("swipeUpdate", [](void*, SCallbackInfo&, std::any data) {
+        if (Config::disableGestures) return;
+        auto ev  = std::any_cast<IPointer::SSwipeUpdateEvent>(data);
+        auto mon = g_pCompositor->getMonitorFromCursor();
+        auto w   = getWidgetForMonitor(mon);
+        if (w) w->updateSwipe(ev);
+    });
 
-        g_pSwipeEndHook = g_pHookSystem->hookDynamic("swipeEnd", [](void*, SCallbackInfo&, std::any data) {
-            auto ev  = std::any_cast<IPointer::SSwipeEndEvent>(data);
-            auto mon = g_pCompositor->getMonitorFromCursor();
-            auto w   = getWidgetForMonitor(mon);
-            if (w) w->endSwipe(ev);
-        });
-    }
+    g_pSwipeEndHook = g_pHookSystem->hookDynamic("swipeEnd", [](void*, SCallbackInfo&, std::any data) {
+        if (Config::disableGestures) return;
+        auto ev  = std::any_cast<IPointer::SSwipeEndEvent>(data);
+        auto mon = g_pCompositor->getMonitorFromCursor();
+        auto w   = getWidgetForMonitor(mon);
+        if (w) w->endSwipe(ev);
+    });
 
     g_pAddMonitorHook = g_pHookSystem->hookDynamic("monitorAdded", [](void*, SCallbackInfo&, std::any) {
         registerMonitors();
     });
 
+    loadConfigValues();
     registerMonitors();
 
     HyprlandAPI::addNotification(handle, "[Hyprspace] Loaded OK", CHyprColor(0xFF89b4faU), 3000);
